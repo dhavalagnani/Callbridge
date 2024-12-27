@@ -24,12 +24,15 @@ const UserSchema = new mongoose.Schema(
       id: String,
       publicKey: String,
     },
-    // callHistory: [
-    //   {
-    //     type: Schema.Types.ObjectId,
-    //     ref: "Call",
-    //   },
-    // ],
+    avatar: {
+      type: String,
+    },
+    callHistory: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Call",
+      },
+    ],
   },
   { timestamps: true }
 );
