@@ -3,12 +3,12 @@ import mongoose from "mongoose";
 
 const CallSchema = new mongoose.Schema({
   caller: {
-    type: Schema.Types.ObjectId,
+    type: mongoose.Schema.Types.ObjectId,
     ref: "User",
     required: true,
   },
   callee: {
-    type: Schema.Types.ObjectId,
+    type: mongoose.Schema.Types.ObjectId,
     ref: "User",
     required: true,
   },

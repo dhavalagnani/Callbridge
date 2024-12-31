@@ -6,6 +6,26 @@ import jsonwebtoken from "jsonwebtoken";
 import { hash, compare } from "bcrypt";
 import { uploadOnCloudinary } from "../Utils/cloudinary.util.js"; // Importing the upload function
 
+export const generateAccessAndRefreshToken = async (userId) => {
+  try {
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new ApiError(404, "User not found");
+    }
+    const accessToken = user.generateAccessToken();
+    const refreshToken = user.generateRefreshToken();
+    user.refreshToken = refreshToken;
+    await user.save({
+      validateBeforeSave: false,
+    });
+    return {
+      accessToken,
+      refreshToken,
+    };
+  } catch (error) {
+    throw new ApiError(500, "Token Generation Failed");
+  }
+};
 // Register a new user
 export const registerUser = asyncHandler(async (req, res) => {
   const { username, password, mpin } = req.body;
@@ -48,16 +68,32 @@ export const loginUser = asyncHandler(async (req, res) => {
     throw new ApiError(401, "Invalid credentials");
   }
 
-  const token = jsonwebtoken.sign({ id: user._id }, process.env.JWT_SECRET, {
-    expiresIn: "1h",
+  const { accessToken, refreshToken } = await generateAccessAndRefreshToken(
+    user._id
+  );
+  user.refreshToken = refreshToken;
+  await user.save({
+    validateBeforeSave: false,
   });
-  ApiResponse.success(res, "Login successful", { token });
+
+  const loggedInUser = await User.findById(user._id).select(
+    "-password -refreshToken"
+  );
+  const options = {
+    httpsOnly: true,
+    secure: true,
+  };
+  res
+    .cookie("refreshToken", refreshToken, options)
+    .cookie("accessToken", accessToken, options)
+    .status(200)
+    .json(new ApiResponse(200, "User logged in successfully", loggedInUser));
 });
 
 // User logout
 export const logoutUser = asyncHandler(async (req, res) => {
-  // Clear token (front-end should handle actual token deletion)
-  ApiResponse.success(res, "Logout successful");
+  res.clearCookie("refreshToken").clearCookie("accessToken");
+  res.status(200).json(new ApiResponse(200, "User logged out successfully"));
 });
 
 // Validate MPIN
@@ -65,7 +101,7 @@ export const validateMpin = asyncHandler(async (req, res) => {
   const { username, mpin } = req.body;
   const user = await User.findOne({ username });
 
-  if (!user || !(await compare(mpin, user.mpin))) {
+  if (!user || !compare(mpin, user.mpin)) {
     throw new ApiError(401, "Invalid MPIN");
   }
 
