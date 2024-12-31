@@ -28,8 +28,8 @@ export const generateAccessAndRefreshToken = async (userId) => {
 };
 // Register a new user
 export const registerUser = asyncHandler(async (req, res) => {
-  const { username, password, mpin } = req.body;
-  if (!username || !password) {
+  const { username, email,password } = req.body;
+  if (!username || !email|| !password) {
     throw new ApiError(400, "Username and password are required");
   }
   const existingUser = await User.findOne({ username });
@@ -37,12 +37,13 @@ export const registerUser = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Username already exists");
   }
   const hashedPassword = await hash(password, 10);
-  const hashedMpin = mpin ? await hash(mpin, 10) : null;
+  // const hashedMpin = mpin ? await hash(mpin, 10) : null;
 
   const newUser = new User({
     username,
+    email,
     password: hashedPassword,
-    mpin: hashedMpin,
+    // mpin: hashedMpin,
   });
   const profilePicLocalPath = req.files?.profilepic?.[0]?.path || null;
   let profileUrl = null;
