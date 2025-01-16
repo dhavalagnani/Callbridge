@@ -3,10 +3,14 @@ import cors from "cors";
 import { connectToDatabase } from "./constants.js";
 import HTTPS from "https";
 import fs from "fs";
-import { Server } from "socket.io";
+import setupSocket from "./src/sockets/socket.js";
 
 const app = express();
-app.use(cors());
+app.use(
+  cors({
+    origin: "http://localhost:3000",
+  })
+);
 app.use(json());
 
 // MongoDB Connection
@@ -20,36 +24,15 @@ const server = HTTPS.createServer(
   },
   app
 );
-//importing routes
-import userRouter from './src/Routes/user.routes.js'; // Adjust the path accordingly
 
-//using routes
-app.use('/api/users', userRouter);
+// Importing routes
+import userRouter from "./src/Routes/user.routes.js"; // Adjust the path accordingly
+
+// Using routes
+app.use("/api/users", userRouter);
 
 // Socket.IO Setup
-const io = new Server(server, {
-  cors: {
-    origin: "https://your-frontend-domain.com",
-    methods: ["GET", "POST"],
-  },
-});
-
-// Socket.IO Event Handling
-io.on("connection", (socket) => {
-  console.log("New client connected:", socket.id);
-
-  // Handle signaling data here
-  socket.on("signal", (data) => {
-    io.to(data.to).emit("signal", {
-      from: socket.id,
-      signal: data.signal,
-    });
-  });
-
-  socket.on("disconnect", () => {
-    console.log("Client disconnected:", socket.id);
-  });
-});
+const io = setupSocket(server); // Initialize socket setup
 
 // Export the server and io for use in index.js
 export { server, io };
