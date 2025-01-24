@@ -6,13 +6,13 @@ const Signup = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
-  const backendUrl = "https://localhost:4000";
+  const backendUrl = "https://localhost:8800";
 
   const handleSignup = async (e) => {
     e.preventDefault();
     try {
       const response = await fetch(
-        "https://localhost:4000/api/users/register",
+        "https://localhost:8800/api/users/register",
         {
           method: "POST",
           headers: {
@@ -22,7 +22,7 @@ const Signup = () => {
         }
       );
       if (response.ok) {
-        navigate("/login");
+        navigate("/Home.js");
       } else {
         alert("Signup failed. Please try again.");
       }
@@ -35,7 +35,7 @@ const Signup = () => {
     <div className="flex items-center justify-center h-screen bg-gray-100">
       <div className="bg-white p-6 rounded shadow-md w-96">
         <h2 className="text-center text-2xl font-bold mb-4">Signup</h2>
-        <form onSubmit={handleSignup}>
+        <form onClick={handleSignup}>
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700">
               Username:
