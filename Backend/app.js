@@ -6,12 +6,16 @@ import fs from "fs";
 import setupSocket from "./src/sockets/socket.js";
 
 const app = express();
+app.use(express.json());
 app.use(
   cors({
-    origin: "http://localhost:3000",
+    origin: "http://localhost:3000" || "*",
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE"],
   })
 );
-app.use(json());
+
+app.options("*", cors());
 
 // MongoDB Connection
 connectToDatabase();

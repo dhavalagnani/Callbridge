@@ -1,35 +1,40 @@
 import User from "../Models/user.model.js";
 import asyncHandler from "../Utils/asyncHandler.util.js";
-import ApiError from "../Utils/ApiError.util.js";
+import {
+  ApiError,
+  NotFoundError,
+  ValidationError,
+} from "../Utils/ApiError.util.js";
 import ApiResponse from "../Utils/ApiResponse.util.js";
-import jsonwebtoken from "jsonwebtoken";
+import jwt from "jsonwebtoken";
 import { hash, compare } from "bcrypt";
 import { uploadOnCloudinary } from "../Utils/cloudinary.util.js"; // Importing the upload function
 
 export const generateAccessAndRefreshToken = async (userId) => {
   try {
-    const user = await User.findById(userId);
-    if (!user) {
-      throw new ApiError(404, "User not found");
-    }
-    const accessToken = user.generateAccessToken();
-    const refreshToken = user.generateRefreshToken();
-    user.refreshToken = refreshToken;
-    await user.save({
-      validateBeforeSave: false,
+    const accessToken = jwt.sign({ id: userId }, process.env.JWT_SECRET, {
+      expiresIn: "15m",
     });
-    return {
-      accessToken,
-      refreshToken,
-    };
+    const refreshToken = jwt.sign(
+      { id: userId },
+      process.env.JWT_REFRESH_SECRET,
+      {
+        expiresIn: "7d",
+      }
+    );
+
+    return { accessToken, refreshToken };
   } catch (error) {
-    throw new ApiError(500, "Token Generation Failed");
+    console.error("Error generating tokens:", error.message);
+    throw new ApiError(500, "Failed to generate tokens");
   }
 };
+
+// export default generateAccessAndRefreshToken;
 // Register a new user
 export const registerUser = asyncHandler(async (req, res) => {
-  const { username, email,password } = req.body;
-  if (!username || !email|| !password) {
+  const { username, email, password } = req.body;
+  if (!username || !email || !password) {
     throw new ApiError(400, "Username and password are required");
   }
   const existingUser = await User.findOne({ username });
@@ -64,26 +69,34 @@ export const registerUser = asyncHandler(async (req, res) => {
 export const loginUser = asyncHandler(async (req, res) => {
   const { username, password } = req.body;
   const user = await User.findOne({ username });
-
-  if (!user || !(await compare(password, user.password))) {
+  console.log("User fetched from database:", user); // Log user data
+  if (!user) {
+    console.error("No user found with username");
     throw new ApiError(401, "Invalid credentials");
   }
 
+  const isPasswordMatch = await compare(password, user.password);
+  if (!isPasswordMatch) {
+    console.error("Password mismatch");
+    throw new ApiError(401, "Invalid credentials");
+  }
+
+  console.log("Generating tokens for user ID:", user._id);
   const { accessToken, refreshToken } = await generateAccessAndRefreshToken(
     user._id
   );
+
   user.refreshToken = refreshToken;
-  await user.save({
-    validateBeforeSave: false,
-  });
+  await user.save({ validateBeforeSave: false });
 
   const loggedInUser = await User.findById(user._id).select(
     "-password -refreshToken"
   );
   const options = {
-    httpsOnly: true,
-    secure: true,
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
   };
+
   res
     .cookie("refreshToken", refreshToken, options)
     .cookie("accessToken", accessToken, options)
